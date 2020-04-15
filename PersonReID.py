@@ -1,4 +1,9 @@
-### Code is adapted from : https://github.com/layumi/Person_reID_baseline_pytorch
+# ------------------------------
+# Raymond Ng
+# NUS ISS Internship project 2020
+#
+# Code is adapted from : https://github.com/layumi/Person_reID_baseline_pytorch
+# ------------------------------
 
 import os
 import cv2
@@ -97,10 +102,8 @@ class ft_net(nn.Module):
         x = self.classifier(x)
         return x
 
-def load_network(network):
-    # save_path = os.path.join('model','Mars_ResNet50','net_last.pth')
-    save_path = os.path.join('model','detrac2_ResNet50','net_49.pth')
-    network.load_state_dict(torch.load(save_path))
+def load_network(network, weights):
+    network.load_state_dict(torch.load(weights))
     return network
 
 def fliplr(img, device):
@@ -126,8 +129,6 @@ def get_id(img_path):
 
 def image_loader(loader, image_name, fromcv2=False):
     if fromcv2:
-        # TODO: How to resize correctly for all detections per frame? What should be the dimension?
-        # 128x256 is dimension used in MARS dataset
         image = cv2.resize(image_name, (64,128)) 
         image = Image.fromarray(image_name) # Convert to PIL
     else:
@@ -138,15 +139,14 @@ def image_loader(loader, image_name, fromcv2=False):
     return image
 
 class PersonReid:
-    def __init__(self, device=torch.device('cpu'), verbose=False):
-        self.device = device
+    def __init__(self, network_config, weights, device='cpu', verbose=False):
+        self.device = torch.device(device)
         self.verbose = verbose
-        # config_path = os.path.join('model', 'Mars_ResNet50', 'opts.yaml')
-        config_path = os.path.join('model','detrac2_ResNet50','opts.yaml')
+        config_path = network_config
         with open(config_path, 'r') as stream:
                 self.config = yaml.load(stream, Loader=yaml.SafeLoader)
         model_structure = ft_net(class_num=self.config['nclasses'], droprate=0.5, stride=self.config['stride']).to(device=self.device)
-        self.model = load_network(model_structure)
+        self.model = load_network(model_structure, weights)
         self.model.classifier.classifier = nn.Sequential()
         self.model.eval()
         self.transforms = transforms.Compose([
@@ -156,6 +156,9 @@ class PersonReid:
             ])
 
     def extract_features(self, images):
+        '''
+        Method to extract features by the ReID model
+        '''
         features = torch.FloatTensor().to(device=self.device)
         for image in images:
             img = image_loader(self.transforms, image, True).to(device=self.device)
@@ -172,6 +175,9 @@ class PersonReid:
         return features
     
     def reid(self, qfeat, gfeat, confidence):
+        '''
+        Method to generate ReID score
+        '''
         qScore_idx = {}
         for qidx in range(len(qfeat)):
             qf = qfeat[qidx]
@@ -196,55 +202,56 @@ class PersonReid:
                 print(outtxt)
                 print(f'Best Gallery Index [{best_gindex}], Score ({best_gscore:.2f})\n')
         return qScore_idx
-        
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(prog='PersonReID.py')
-    parser.add_argument('-dc', '--disable-cuda', action='store_true', help='Flag to disable CUDA')
-    parser.add_argument('-qv', '--qvideos-path', type=str, default='video', help='Path to query videos')
-    parser.add_argument('-gv', '--gvideos-path', type=str, default='video', help='Path to gallery videos')
-    parser.add_argument('-s', '--save-vid', action='store_true', help='Save output videos')
-    args = parser.parse_args()
 
-    if not args.disable_cuda and torch.cuda.is_available():
-        device = torch.device('cuda')
-    else:
-        device = torch.device('cpu')
+# FOR DEBUG
+# if __name__ == '__main__':
+#     parser = argparse.ArgumentParser(prog='PersonReID.py')
+#     parser.add_argument('-dc', '--disable-cuda', action='store_true', help='Flag to disable CUDA')
+#     parser.add_argument('-qv', '--qvideos-path', type=str, default='video', help='Path to query videos')
+#     parser.add_argument('-gv', '--gvideos-path', type=str, default='video', help='Path to gallery videos')
+#     parser.add_argument('-s', '--save-vid', action='store_true', help='Save output videos')
+#     args = parser.parse_args()
 
-    # Primary vid
-    qvid_ls = os.listdir(args.qvideos_path)
-    qvids = []
-    for filename in qvid_ls:
-        img = cv2.imread(os.path.join(args.qvideos_path, filename))
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        qvids.append(img)
+#     if not args.disable_cuda and torch.cuda.is_available():
+#         device = torch.device('cuda')
+#     else:
+#         device = torch.device('cpu')
 
-    # Sec vid
-    gvid_ls = os.listdir(args.gvideos_path)
-    gvids = []
-    for filename in gvid_ls:
-        img = cv2.imread(os.path.join(args.gvideos_path, filename))
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        gvids.append(img)
+#     # Primary vid
+#     qvid_ls = os.listdir(args.qvideos_path)
+#     qvids = []
+#     for filename in qvid_ls:
+#         img = cv2.imread(os.path.join(args.qvideos_path, filename))
+#         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+#         qvids.append(img)
 
-    st = time.time()
-    pr = PersonReid(device)
-    with torch.no_grad():
-        qfeatures = pr.extract_features(qvids)
-        gfeatures = pr.extract_features(gvids)
-    print(qfeatures.dtype)
-    print(gfeatures.dtype)
-    et = time.time()
-    print(f'Time: {et - st}')
+#     # Sec vid
+#     gvid_ls = os.listdir(args.gvideos_path)
+#     gvids = []
+#     for filename in gvid_ls:
+#         img = cv2.imread(os.path.join(args.gvideos_path, filename))
+#         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+#         gvids.append(img)
 
-    qf = qfeatures[0]
-    query = qf.view(-1,1)
-    print(query.shape)
-    score = torch.mm(gfeatures, query)
-    score = score.squeeze(1).cpu()
-    score = score.numpy()
-    print(f'score: {score}')
+#     st = time.time()
+#     pr = PersonReid(device)
+#     with torch.no_grad():
+#         qfeatures = pr.extract_features(qvids)
+#         gfeatures = pr.extract_features(gvids)
+#     print(qfeatures.dtype)
+#     print(gfeatures.dtype)
+#     et = time.time()
+#     print(f'Time: {et - st}')
 
-    index = np.argsort(score)
-    print(f'presort index: {index}')
-    index = index[::-1]
-    print(f'index: {index}')
+#     qf = qfeatures[0]
+#     query = qf.view(-1,1)
+#     print(query.shape)
+#     score = torch.mm(gfeatures, query)
+#     score = score.squeeze(1).cpu()
+#     score = score.numpy()
+#     print(f'score: {score}')
+
+#     index = np.argsort(score)
+#     print(f'presort index: {index}')
+#     index = index[::-1]
+#     print(f'index: {index}')

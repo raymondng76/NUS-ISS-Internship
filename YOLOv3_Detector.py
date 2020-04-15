@@ -1,3 +1,8 @@
+# ------------------------------
+# Raymond Ng
+# NUS ISS Internship project 2020
+# ------------------------------
+
 import os
 import cv2
 import sys
@@ -13,20 +18,20 @@ class YOLOv3_Detector:
                 conf_thresh=0.5,
                 score_thresh=0.5,
                 iou_thresh=0.5,
-                tiny_yolo=False):
-
-        if tiny_yolo:
-            nnconfig = 'cfg/yolov3-tiny.cfg'
-            weights = 'weights/yolov3-tiny.weights'
+                class_filter=2): # 2 for car in coco dataset
         self.config_path = nnconfig
         self.weights_path = weights
         self.labels = open(classes).read().strip().split("\n")
         self.confidence = conf_thresh
         self.score_threshold = score_thresh
         self.IOU_threshold = iou_thresh
+        self.class_filter = class_filter
         self.net = cv2.dnn.readNetFromDarknet(self.config_path, self.weights_path)
     
     def detect(self, img, draw=False):
+        '''
+        Detection for single frame, method should return the frame and list of all bounding boxes
+        '''
         colors = np.random.randint(0, 255, size=(len(self.labels), 3), dtype="uint8")
         h, w = img.shape[:2]
         blob = cv2.dnn.blobFromImage(img, 1/255.0, (416, 416), swapRB=True, crop=False)
@@ -42,7 +47,7 @@ class YOLOv3_Detector:
             for detection in output:
                 scores = detection[5:]
                 class_id = np.argmax(scores)
-                if class_id != 2: # only filter pedestrains for now
+                if class_id != self.class_filter:
                     continue
                 confidence = scores[class_id]
                 if confidence > self.confidence:
@@ -73,16 +78,17 @@ class YOLOv3_Detector:
                     cv2.rectangle(img, (x, y), (x + w, y + h), color=color, thickness=thickness)
         return img, outboxes
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-i', '--image', type=str, default='', help='Image file to detect on')
-    parser.add_argument('-d', '--draw', action='store_true', help='Flag to draw bounding boxes')
-    parser.add_argument('-o', '--output', type=str, default='outimg.png', help='Filename for output image, only if draw is enabled')
-    args = parser.parse_args()
+# FOR DEBUG
+# if __name__ == '__main__':
+#     parser = argparse.ArgumentParser()
+#     parser.add_argument('-i', '--image', type=str, default='', help='Image file to detect on')
+#     parser.add_argument('-d', '--draw', action='store_true', help='Flag to draw bounding boxes')
+#     parser.add_argument('-o', '--output', type=str, default='outimg.png', help='Filename for output image, only if draw is enabled')
+#     args = parser.parse_args()
     
-    img = cv2.imread(args.image)
-    yolo = YOLOv3_Detector()
-    outimg, boxes = yolo.detect(img, args.draw)
-    print(boxes)
-    if args.draw:
-        cv2.imwrite(args.output, outimg)
+#     img = cv2.imread(args.image)
+#     yolo = YOLOv3_Detector()
+#     outimg, boxes = yolo.detect(img, args.draw)
+#     print(boxes)
+#     if args.draw:
+#         cv2.imwrite(args.output, outimg)

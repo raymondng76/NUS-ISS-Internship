@@ -1,4 +1,9 @@
-### Code is adapted from : https://github.com/KaiyangZhou/deep-person-reid
+# ------------------------------
+# Raymond Ng
+# NUS ISS Internship project 2020
+#
+# Code is adapted from : https://github.com/KaiyangZhou/deep-person-reid
+# ------------------------------
 
 import os
 import cv2
@@ -12,8 +17,6 @@ from PIL import Image
 
 def image_loader(loader, image_name, fromcv2=False):
     if fromcv2:
-        # TODO: How to resize correctly for all detections per frame? What should be the dimension?
-        # 128x256 is dimension used in MARS dataset
         image = cv2.resize(image_name, (128,256)) 
         image = Image.fromarray(image_name) # Convert to PIL
     else:
@@ -30,10 +33,10 @@ def fliplr(img, device):
     return img_flip
 
 class DeepPersonReID:
-    def __init__(self, weights_path, device=torch.device('cpu'), verbose=False):
-        self.device = device
+    def __init__(self, model, weights_path, device='cpu', verbose=False):
+        self.device = torch.device(device)
         self.verbose = verbose
-        self.model = torchreid.models.build_model(name='osnet_ain_x1_0', num_classes=1041).to(self.device)
+        self.model = torchreid.models.build_model(name=model, num_classes=1041).to(self.device)
         torchreid.utils.load_pretrained_weights(self.model, weights_path)
         self.model.eval()
         self.transforms = transforms.Compose([
@@ -43,6 +46,9 @@ class DeepPersonReID:
             ])
     
     def extract_features(self, images):
+        '''
+        Method to extract features by the ReID model
+        '''
         features = torch.FloatTensor().to(device=self.device)
         for image in images:
             img = image_loader(self.transforms, image, True).to(device=self.device)
@@ -59,6 +65,9 @@ class DeepPersonReID:
         return features
     
     def reid(self, qfeat, gfeat, confidence):
+        '''
+        Method to generate ReID score
+        '''
         qScore_idx = {}
         for qidx in range(len(qfeat)):
             qf = qfeat[qidx]
@@ -84,7 +93,8 @@ class DeepPersonReID:
                 print(f'Best Gallery Index [{best_gindex}], Score ({best_gscore:.2f})\n')
         return qScore_idx
 
-if __name__ == '__main__':
+# FOR DEBUG
+# if __name__ == '__main__':
     # parser = argparse.ArgumentParser(prog='DeepPersonReID.py')
     # parser.add_argument('-qv', '--qvideos-path', type=str, default='video', help='Path to query videos')
     # parser.add_argument('-gv', '--gvideos-path', type=str, default='video', help='Path to gallery videos')
@@ -92,5 +102,5 @@ if __name__ == '__main__':
     # args = parser.parse_args()
 
     # img = Image.open('35.png')
-    dpReID = DeepPersonReID(os.path.join('model','osnet_ain_x1_0_mars_softmax_cosinelr','model.pth.tar-150'), torch.device('cuda'))
-    print(dpReID.extract_features(['35.png']))
+    # dpReID = DeepPersonReID(os.path.join('model','osnet_ain_x1_0_mars_softmax_cosinelr','model.pth.tar-150'), torch.device('cuda'))
+    # print(dpReID.extract_features(['35.png']))
