@@ -30,7 +30,7 @@ class YOLOv3_Detector:
     
     def detect(self, img, draw=False):
         '''
-        Detection for single frame, method should return the frame and list of all bounding boxes
+        Detection for single frame, method should return the frame, list of all bounding boxes, list of all bounding box index (None if not applicable)
         '''
         colors = np.random.randint(0, 255, size=(len(self.labels), 3), dtype="uint8")
         h, w = img.shape[:2]
@@ -76,7 +76,7 @@ class YOLOv3_Detector:
                     w, h = boxes[i][2], boxes[i][3]
                     color = [int(c) for c in colors[class_ids[i]]]
                     cv2.rectangle(img, (x, y), (x + w, y + h), color=color, thickness=thickness)
-        return img, outboxes
+        return img, outboxes, None
 
 # FOR DEBUG
 # if __name__ == '__main__':

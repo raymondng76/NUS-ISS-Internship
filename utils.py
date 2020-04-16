@@ -52,6 +52,7 @@ def ProcessConfig(config):
     out_config['save_video_name'] = gconfig['save_video_name']
     out_config['save_video_path'] = gconfig['save_video_path']
     out_config['verbose'] = True if gconfig['verbose'] == 'True' else False
+    out_config['display_frames'] = True if gconfig['display_frames'] == 'True' else False
 
     # Sort out detector and reid config
     det = gconfig['det_algorithm']
@@ -70,3 +71,7 @@ def ProcessConfig(config):
         out_config[reid][rkey] = reid_config[rkey]
 
     return out_config
+
+def CreateDirIfMissing(path):
+    if not os.path.isdir(path):
+        os.mkdir(path)
