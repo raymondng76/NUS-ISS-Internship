@@ -4,6 +4,7 @@
 # ------------------------------
 
 import os
+import cv2
 import torch
 
 def ConfigSectionMap(config, section):
@@ -75,3 +76,62 @@ def ProcessConfig(config):
 def CreateDirIfMissing(path):
     if not os.path.isdir(path):
         os.mkdir(path)
+    
+def PadFrame(frame):
+    borderType = cv2.BORDER_CONSTANT
+    
+    top = int(0.0025 * frame.shape[0])
+    bottom = top
+    left = int(0.0025 * frame.shape[1])
+    right = left
+
+    val = [0, 0, 0]
+
+    return cv2.copyMakeBorder(frame, top, bottom, left, right, borderType, None, val)
+
+def DrawBoundingBoxAndIdx(frames, boxes, boxes_idx, reid_idx):
+    '''
+    frames = Dictionary containing single frame for each cam / vid (frames[0] for qCam, frames[1:] for all gCam)
+    boxes = Dictionary containing all bounding boxes for one frame (boxes[0] for qCam, boxes[1:] for all gCam)
+    boxes_idx = Dictionary containing all ids of bounding boxes for one frame (boxes_idx[0] for qCam, boxes_idx[1:] for all gCam)
+    reid_idx = Dictionary containing all ReID matched ids for all bounding boxes (reid[0] = None, reid[1:] for all gCam)
+    '''
+
+    # Draw boxes for QCam
+    frames[0] = DrawBBoxforQCam(frames[0], boxes[0], boxes_idx[0])
+    
+    # Draw boxes for all GCam
+
+    return frames
+
+def DrawBBoxforQCam(frame, boxes, boxes_idx):
+    font_scale = 0.8
+    thickness  = 2
+
+    # Loop thru all boxes for this frame
+    for idx in range(len(boxes)):
+        x, y = boxes[idx][0], boxes[idx][1]
+        w, h = boxes[idx][2], boxes[idx][3]
+        # Draw bounding box
+        cv2.rectangle(frame, (x, y), (x + w, y + h), color=(0, 0, 255), thickness=thickness)
+        # Draw bounding box ID text
+        id_txt = str(boxes_idx[idx])
+        (txt_width, txt_height) = cv2.getTextSize(id_txt, cv2.FONT_HERSHEY_SIMPLEX, fontScale=font_scale, thickness=thickness)[0]
+        txt_offset_x = x
+        txt_offset_y = y - 5
+        box_coords = (
+            (txt_offset_x, txt_offset_y), 
+            (txt_offset_x + txt_width + 2, txt_offset_y - txt_height))
+        overlay = frame.copy()
+        cv2.rectangle(overlay, box_coords[0], box_coords[1], color=(0, 0, 255), thickness=cv2.FILLED)
+        frame = cv2.addWeighted(overlay, 0.6, frame, 0.4, 0)
+        cv2.putText(frame, id_txt, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, color=(0, 0, 0), fontScale=font_scale, thickness=thickness)
+    return frame
+
+def SliceDetection(frame, frame_boxes):
+    det_slice = {}
+    for bidx in range(len(frame_boxes)):
+        x, y = frame_boxes[bidx][0], frame_boxes[bidx][1]
+        w, h = frame_boxes[bidx][2], frame_boxes[bidx][3]
+        det_slice[bidx] = frame[y:y + h, x:x + w]
+    return det_slice

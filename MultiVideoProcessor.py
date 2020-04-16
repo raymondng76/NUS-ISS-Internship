@@ -15,8 +15,12 @@ import torch
 
 from Algorithm_Factory import Detector_Tracker_Factory
 from Algorithm_Factory import ReID_Factory
+
 from utils import ProcessConfig
 from utils import CreateDirIfMissing
+from utils import PadFrame
+from utils import DrawBoundingBoxAndIdx
+from utils import SliceDetection
 
 class MultiVideoProcessor:
     '''
@@ -32,6 +36,18 @@ class MultiVideoProcessor:
         if self.config['verbose'] and not self.config['use_camera']:
             print(f'Video with smallest frame: [{self.smallestVidKey}]')
             print(f'Minimium frame count: [{self.minNumFrames}]')
+
+    def _reid_process_factory(self):
+        '''
+        Method to allow customized reid process for different ReID algorithm
+        '''
+        factory = {
+            'PersonReID': self._processPersonReid,
+            'DeepPersonReID': self._processPersonReid
+        }
+
+    def _processPersonReid(self):
+        pass
 
     def _processVidStats(self):
         '''
@@ -86,6 +102,7 @@ class MultiVideoProcessor:
         '''
         Stack frames 3 across for each rows
         '''
+        # print(f'frames shape: [{frames[0].shape[1], frames[0].shape[0]}]')
         hor_stacks = []
         ver_stacks = []
         num_frame = len(frames)
@@ -95,13 +112,13 @@ class MultiVideoProcessor:
         # Whole stack
         for idx in range(num_complete_stk):
             sidx = idx * 3
-            hstk = np.hstack((frames[sidx], frames[sidx+1], frames[sidx+2]))
+            hstk = np.hstack((PadFrame(frames[sidx]), PadFrame(frames[sidx+1]), PadFrame(frames[sidx+2])))
             hor_stacks.append(hstk)
 
         # Reminder stack
         if reminder != 0:
             empty_count = 3 - reminder
-            reminder_stk = frames[-reminder:]
+            reminder_stk = PadFrame(frames[-reminder:])
             if num_complete_stk != 0:
                 empty_frame = (np.zeros(frames[0].shape)).astype('uint8')
                 for c in range(empty_count):
@@ -121,26 +138,27 @@ class MultiVideoProcessor:
             outpath = os.path.join(self.config['save_video_path'], self.config['save_video_name'])
         
         # Main loop
-        breaker = True
+        loop = True
         frameCounter = 0
-        while(breaker):
+        while(loop):
             frameCounter += 1
             framestart = time.time()
 
             if self.config['verbose']:
-                print(f'FRAME[{frameCounter}] : START_TIME[{framestart}]')
+                print(f'FRAME[{frameCounter}] : Start Processing')
 
             # Variable to store all frames, bounding boxes and idx
             frames    = {}
             boxes     = {}
             boxes_idx = {}
+            reid_idx = {}
 
             # ********** DETECTION / TRACKER **********
             # Grab qCam frame
             qGrabbed, qFrame = self.vid_stats['qCam']['cap'].read()
             if not qGrabbed:
                 print('Frame grab from qCam failed!')
-                breaker = False
+                loop = False
                 break
             # Run thru detector or tracker
             if self.detector != None:
@@ -159,9 +177,8 @@ class MultiVideoProcessor:
                 gGrabbed, gFrame = self.vid_stats[key]['cap'].read()
                 if not gGrabbed:
                     print(f'Frame grab from {key} failed!')
-                    breaker = False
+                    loop = False
                     break
-                
                 # Run thru detector or tracker
                 if self.detector != None:
                     outFrame, outBoxes, outBoxesIdx = self.detector.detect(gFrame)
@@ -174,11 +191,13 @@ class MultiVideoProcessor:
             # *****************************************
             
             # ********** REID **********
-
+            if self.reid != None:
+                pass
             # **************************
 
             # ********** Draw and label bounding boxes **********
-
+            if boxes[0] != None:
+                frames = DrawBoundingBoxAndIdx(frames, boxes, boxes_idx, reid_idx)
             # ***************************************************
 
             # ********** Process and stack frames **********
@@ -188,18 +207,18 @@ class MultiVideoProcessor:
             frameend = time.time()
             frame_time = frameend - framestart
             if self.config['verbose']:
-                print(f'FRAME[{frameCounter}] : END_TIME  [{frameend}] -> Processed in {frame_time:.3f} second(s).\n')
+                print(f'FRAME[{frameCounter}] : End Processing -> Processed in {frame_time:.3f} second(s).\n')
 
             # ********** Display processed frames **********
             if self.config['display_frames']:
                 detname = self.config['det_algorithm']
                 reidname = self.config['reid_algorithm']
-                cv2.imshow(f'MultiVideo -> Detector_Tracker: {detname} -> ReID: {reidname}', frameStack)
+                cv2.imshow(f'MultiVideo -> Detector_Tracker: [{detname}] -> ReID: [{reidname}]', frameStack)
 
                 # ********** Save video **********
                 if self.config['save_video']:
                     if writer is None:
-                        fourcc = cv2.VideoWriter_fourcc(*'X264')
+                        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
                         writer = cv2.VideoWriter(
                             outpath,
                             fourcc,
@@ -215,6 +234,9 @@ class MultiVideoProcessor:
                 if key == ord('q'):
                     break
             # **********************************************
+
+            if frameCounter >= self.minNumFrames:
+                loop = False
 
         # ********** Clean up for exit **********
         if self.config['save_video']:

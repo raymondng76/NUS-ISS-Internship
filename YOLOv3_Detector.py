@@ -62,10 +62,14 @@ class YOLOv3_Detector:
                     class_ids.append(class_id)
         idxs = cv2.dnn.NMSBoxes(boxes, confidences, self.score_threshold, self.IOU_threshold)
 
-        outboxes = []
+        outboxes    = []
+        outboxesidx = []
+        boxCount = 0
         if len(idxs) > 0:
-                for i in idxs.flatten():
-                    outboxes.append(boxes[i])
+            for i in idxs.flatten():
+                boxCount += 1
+                outboxes.append(boxes[i])
+                outboxesidx.append(boxCount)
 
         if draw:
             font_scale = 1
@@ -76,7 +80,7 @@ class YOLOv3_Detector:
                     w, h = boxes[i][2], boxes[i][3]
                     color = [int(c) for c in colors[class_ids[i]]]
                     cv2.rectangle(img, (x, y), (x + w, y + h), color=color, thickness=thickness)
-        return img, outboxes, None
+        return img, outboxes, outboxesidx
 
 # FOR DEBUG
 # if __name__ == '__main__':
