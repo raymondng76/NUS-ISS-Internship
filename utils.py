@@ -70,8 +70,3 @@ def ProcessConfig(config):
         out_config[reid][rkey] = reid_config[rkey]
 
     return out_config
-
-def ProcessVidStats(camList):
-    vidList = {}
-    for idx in range(len(camList)):
-        key = 'cap'
