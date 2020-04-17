@@ -106,6 +106,7 @@ class MultiVideoProcessor:
         hor_stacks = []
         ver_stacks = []
         num_frame = len(frames)
+        print(f'num_frame {num_frame}')
         num_complete_stk = int(num_frame/3)
         reminder = num_frame % 3
 
@@ -118,11 +119,14 @@ class MultiVideoProcessor:
         # Reminder stack
         if reminder != 0:
             empty_count = 3 - reminder
-            reminder_stk = PadFrame(frames[-reminder:])
+            reminder_stk = frames[-reminder:]
+            for stk in range(len(reminder_stk)):
+                reminder_stk[stk] = PadFrame(reminder_stk[stk])
+            
             if num_complete_stk != 0:
                 empty_frame = (np.zeros(frames[0].shape)).astype('uint8')
                 for c in range(empty_count):
-                    reminder_stk.append(empty_frame) 
+                    reminder_stk.append(PadFrame(empty_frame)) 
             hor_stacks.append(np.hstack(tuple(reminder_stk)))
         return np.vstack(hor_stacks)
 
@@ -184,7 +188,7 @@ class MultiVideoProcessor:
                     outFrame, outBoxes, outBoxesIdx = self.detector.detect(gFrame)
                 else:
                     outFrame, outBoxes, outBoxesIdx = gFrame, None, None
-                # Assign for gCam
+                # Assign for gCam, index starts from 1 onwards
                 frames[camidx]    = outFrame
                 boxes[camidx]     = outBoxes
                 boxes_idx[camidx] = outBoxesIdx
@@ -235,8 +239,9 @@ class MultiVideoProcessor:
                     break
             # **********************************************
 
-            if frameCounter >= self.minNumFrames:
-                loop = False
+            if self.minNumFrames != None:
+                if frameCounter >= self.minNumFrames:
+                    loop = False
 
         # ********** Clean up for exit **********
         if self.config['save_video']:

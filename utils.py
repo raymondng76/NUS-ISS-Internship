@@ -7,6 +7,14 @@ import os
 import cv2
 import torch
 
+# Constants for drawing bounding boxes and ID
+FONT_SCALE         = 0.7
+FONT_THICKNESS     = 1
+BOX_LINE_THICKNESS = 2
+YELLOW             = (0, 255, 255)
+RED                = (0, 0, 255)
+BLUE               = (255, 0, 0)
+
 def ConfigSectionMap(config, section):
     dict1 = {}
     options = config.options(section)
@@ -79,14 +87,11 @@ def CreateDirIfMissing(path):
     
 def PadFrame(frame):
     borderType = cv2.BORDER_CONSTANT
-    
-    top = int(0.0025 * frame.shape[0])
+    top    = int(0.005 * frame.shape[0])
     bottom = top
-    left = int(0.0025 * frame.shape[1])
-    right = left
-
+    left   = int(0.0025 * frame.shape[1])
+    right  = left
     val = [0, 0, 0]
-
     return cv2.copyMakeBorder(frame, top, bottom, left, right, borderType, None, val)
 
 def DrawBoundingBoxAndIdx(frames, boxes, boxes_idx, reid_idx):
@@ -101,31 +106,47 @@ def DrawBoundingBoxAndIdx(frames, boxes, boxes_idx, reid_idx):
     frames[0] = DrawBBoxforQCam(frames[0], boxes[0], boxes_idx[0])
     
     # Draw boxes for all GCam
-
+    for idx in range(len(frames) - 1):
+        gidx = idx + 1
+        reid = reid_idx[gidx] if bool(reid_idx) else None
+        frames[gidx] = DrawBBoxforGCams(frames[gidx], boxes[gidx], boxes_idx[gidx], reid) 
     return frames
 
 def DrawBBoxforQCam(frame, boxes, boxes_idx):
-    font_scale = 0.8
-    thickness  = 2
-
     # Loop thru all boxes for this frame
     for idx in range(len(boxes)):
         x, y = boxes[idx][0], boxes[idx][1]
         w, h = boxes[idx][2], boxes[idx][3]
         # Draw bounding box
-        cv2.rectangle(frame, (x, y), (x + w, y + h), color=(0, 0, 255), thickness=thickness)
+        cv2.rectangle(frame, (x, y), (x + w, y + h), color=RED, thickness=BOX_LINE_THICKNESS)
         # Draw bounding box ID text
         id_txt = str(boxes_idx[idx])
-        (txt_width, txt_height) = cv2.getTextSize(id_txt, cv2.FONT_HERSHEY_SIMPLEX, fontScale=font_scale, thickness=thickness)[0]
+        (txt_width, txt_height) = cv2.getTextSize(id_txt, cv2.FONT_HERSHEY_SIMPLEX, fontScale=FONT_SCALE, thickness=FONT_THICKNESS)[0]
         txt_offset_x = x
         txt_offset_y = y - 5
         box_coords = (
             (txt_offset_x, txt_offset_y), 
             (txt_offset_x + txt_width + 2, txt_offset_y - txt_height))
         overlay = frame.copy()
-        cv2.rectangle(overlay, box_coords[0], box_coords[1], color=(0, 0, 255), thickness=cv2.FILLED)
+        cv2.rectangle(overlay, box_coords[0], box_coords[1], color=RED, thickness=cv2.FILLED)
         frame = cv2.addWeighted(overlay, 0.6, frame, 0.4, 0)
-        cv2.putText(frame, id_txt, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, color=(0, 0, 0), fontScale=font_scale, thickness=thickness)
+        cv2.putText(frame, id_txt, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, color=(0, 0, 0), fontScale=FONT_SCALE, thickness=FONT_THICKNESS)
+    return frame
+
+def DrawBBoxforGCams(frame, boxes, boxes_idx, reid_idx):
+    # Loop thru all boxes for this frame
+    for idx in range(len(boxes)):
+        # Detection / Tracked box
+        x, y = boxes[idx][0], boxes[idx][1]
+        w, h = boxes[idx][2], boxes[idx][3]
+        # ID from detection / track
+        detID_txt = str(boxes_idx[idx])
+        detID_offset_x = x
+        detID_offset_y = y + h # Print detection ID at bottom
+        cv2.putText(frame, detID_txt, (int(detID_offset_x), int(detID_offset_y) - 5), cv2.FONT_HERSHEY_SIMPLEX,
+            fontScale=FONT_SCALE, color=YELLOW, thickness=FONT_THICKNESS)
+        # TODO: Filter for REID boxes
+        cv2.rectangle(frame, (x, y), (x + w, y + h), color=YELLOW, thickness=BOX_LINE_THICKNESS)
     return frame
 
 def SliceDetection(frame, frame_boxes):
