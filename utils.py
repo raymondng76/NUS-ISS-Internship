@@ -149,10 +149,10 @@ def DrawBBoxforGCams(frame, boxes, boxes_idx, reid_idx):
         cv2.rectangle(frame, (x, y), (x + w, y + h), color=YELLOW, thickness=BOX_LINE_THICKNESS)
     return frame
 
-def SliceDetection(frame, frame_boxes):
+def SliceDetection(frame, boxes, boxes_idx):
     det_slice = {}
-    for bidx in range(len(frame_boxes)):
-        x, y = frame_boxes[bidx][0], frame_boxes[bidx][1]
-        w, h = frame_boxes[bidx][2], frame_boxes[bidx][3]
-        det_slice[bidx] = frame[y:y + h, x:x + w]
+    for bidx in range(len(boxes)):
+        x, y = boxes[bidx][0], boxes[bidx][1]
+        w, h = boxes[bidx][2], boxes[bidx][3]
+        det_slice[boxes_idx[bidx]] = frame[y:y + h, x:x + w]
     return det_slice

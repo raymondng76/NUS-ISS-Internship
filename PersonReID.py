@@ -139,9 +139,10 @@ def image_loader(loader, image_name, fromcv2=False):
     return image
 
 class PersonReid:
-    def __init__(self, network_config, weights, device='cpu', verbose=False):
+    def __init__(self, network_config, weights, threshold, device='cpu', verbose=False):
         self.device = torch.device(device)
         self.verbose = verbose
+        self.threshold = threshold
         config_path = network_config
         with open(config_path, 'r') as stream:
                 self.config = yaml.load(stream, Loader=yaml.SafeLoader)
@@ -174,7 +175,7 @@ class PersonReid:
             features = torch.cat((features, ff.data.to(device=self.device)), 0)
         return features
     
-    def reid(self, qfeat, gfeat, confidence):
+    def reid(self, qfeat, gfeat):
         '''
         Method to generate ReID score
         '''
@@ -190,7 +191,7 @@ class PersonReid:
             index = index[::-1]
             best_gindex = None
             best_gscore = 0.00
-            if score[index[0]] > confidence:
+            if score[index[0]] > self.threshold:
                 qScore_idx[qidx] = index[0]
                 best_gindex = index[0]
                 best_gscore = score[index[0]]

@@ -33,9 +33,10 @@ def fliplr(img, device):
     return img_flip
 
 class DeepPersonReID:
-    def __init__(self, model, weights_path, device='cpu', verbose=False):
+    def __init__(self, model, weights_path, threshold, device='cpu', verbose=False):
         self.device = torch.device(device)
         self.verbose = verbose
+        self.threshold = threshold
         self.model = torchreid.models.build_model(name=model, num_classes=1041).to(self.device)
         torchreid.utils.load_pretrained_weights(self.model, weights_path)
         self.model.eval()
@@ -64,7 +65,7 @@ class DeepPersonReID:
             features = torch.cat((features, ff.data.to(device=self.device)), 0)
         return features
     
-    def reid(self, qfeat, gfeat, confidence):
+    def reid(self, qfeat, gfeat):
         '''
         Method to generate ReID score
         '''
@@ -80,7 +81,7 @@ class DeepPersonReID:
             index = index[::-1]
             best_gindex = None
             best_gscore = 0.0
-            if score[index[0]] > confidence:
+            if score[index[0]] > self.threshold:
                 qScore_idx[qidx] = index[0]
                 best_gindex = index[0]
                 best_gscore = score[index[0]]

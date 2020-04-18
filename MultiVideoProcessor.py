@@ -37,21 +37,64 @@ class MultiVideoProcessor:
             print(f'Video with smallest frame: [{self.smallestVidKey}]')
             print(f'Minimium frame count: [{self.minNumFrames}]')
 
-    def _reid_process_factory(self):
+    def _reid_process_factory(self, reid):
         '''
-        Method to allow customized reid process for different ReID algorithm
+        Factory method to allow customized reid process for different ReID algorithm
         '''
         factory = {
             'PersonReID': self._processPersonReid,
             'DeepPersonReID': self._processPersonReid
         }
+        return factory[reid]
 
-    def _processPersonReid(self):
-        pass
+    def _processPersonReid(self, frames, boxes, boxes_idx):
+        '''
+        Method to extract features of image slices and run thru ReID process to generate score
+        Implementation is for 'PersonReID' and 'DeepPersonReID' algorithm
+        '''
+        # ********** QCam processing **********
+        # QCam frame, boxes and IDs
+        qframe = frames[0]
+        qboxes = boxes[0]
+        qboxes_idx = boxes_idx[0]
+        # Slice detection
+        # (Dict) qdet_slice : key = box id, value = crop frame of the bounding box
+        qdet_slice = SliceDetection(qframe, qboxes, qboxes_idx)
+        # Extract features of qframe
+        with torch.no_grad():
+            qfeatures = self.reid.extract_features(list(qdet_slice.values()))
+            # qfeats = {}
+            # for idx in range(len(qboxes_idx)):
+            #     qfeats[qboxes_idx[idx]] = qfeatures[idx]
+        # *************************************
+        # ********** GCam processing **********
+        reid_idx = {}
+        for key in frames.keys():
+            if key == 0: # key 0 is for QCam
+                continue
+            # GCam frame, boxes and IDs
+            gframe = frames[key]
+            gboxes = boxes[key]
+            gboxes_idx = boxes_idx[key]
+            # Slice detection
+            # (Dict) gdet_slice : key = box id, value = crop frame of the bounding box
+            gdet_slice = SliceDetection(gframe, gboxes, gboxes_idx)
+            # Extract features of qframe
+            with torch.no_grad():
+                gfeatures = self.reid.extract_features(list(gdet_slice.values()))
+                # gfeats = {}
+                # for idx in range(len(gboxes_idx)):
+                #     gfeats[gboxes_idx[idx]] = gfeatures[idx]
+            
+            # Run Reid to find matching index
+            qScore_idx = self.reid.reid(qfeatures, gfeatures)
+            reid_idx[key] = qScore_idx
+        # *************************************
+        return reid_idx        
 
     def _processVidStats(self):
         '''
-        Private method to process stats of vid or cam.
+        Method to process stats of vid or cam.
         '''
         vidList = {}
         # Process Query camera / video
@@ -102,11 +145,9 @@ class MultiVideoProcessor:
         '''
         Stack frames 3 across for each rows
         '''
-        # print(f'frames shape: [{frames[0].shape[1], frames[0].shape[0]}]')
         hor_stacks = []
         ver_stacks = []
         num_frame = len(frames)
-        print(f'num_frame {num_frame}')
         num_complete_stk = int(num_frame/3)
         reminder = num_frame % 3
 
@@ -120,9 +161,10 @@ class MultiVideoProcessor:
         if reminder != 0:
             empty_count = 3 - reminder
             reminder_stk = frames[-reminder:]
+            # Pad each frame
             for stk in range(len(reminder_stk)):
                 reminder_stk[stk] = PadFrame(reminder_stk[stk])
-            
+            # From 2nd row onwards, if there are rows lesser than 3 frames, add blank frames
             if num_complete_stk != 0:
                 empty_frame = (np.zeros(frames[0].shape)).astype('uint8')
                 for c in range(empty_count):
@@ -135,6 +177,7 @@ class MultiVideoProcessor:
         Run the demo for multi video/cam
         '''
         assert self.vid_stats != None
+        total_proc_start = time.time()
         # Handle save video
         if self.config['save_video']:
             writer = None
@@ -196,7 +239,7 @@ class MultiVideoProcessor:
             
             # ********** REID **********
             if self.reid != None:
-                pass
+                reid_idx = self._reid_process_factory(self.config['reid_algorithm'])(frames, boxes, boxes_idx)                
             # **************************
 
             # ********** Draw and label bounding boxes **********
@@ -211,33 +254,36 @@ class MultiVideoProcessor:
             frameend = time.time()
             frame_time = frameend - framestart
             if self.config['verbose']:
-                print(f'FRAME[{frameCounter}] : End Processing -> Processed in {frame_time:.3f} second(s).\n')
+                print(f'FRAME[{frameCounter}] : End Processing -> Processed in {frame_time:.3f} second(s).')
 
             # ********** Display processed frames **********
             if self.config['display_frames']:
                 detname = self.config['det_algorithm']
                 reidname = self.config['reid_algorithm']
-                cv2.imshow(f'MultiVideo -> Detector_Tracker: [{detname}] -> ReID: [{reidname}]', frameStack)
+                title = f'MultiVideo -> Detector_Tracker: [{detname}] -> ReID: [{reidname}]'
+                if self.config['reid_algorithm'] != None:
+                    title += f' -> ReID match threshold: [{self.reid.threshold}]'
+                cv2.imshow(title, frameStack)
+            # **********************************************
 
-                # ********** Save video **********
-                if self.config['save_video']:
-                    if writer is None:
-                        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                        writer = cv2.VideoWriter(
-                            outpath,
-                            fourcc,
-                            self.vid_stats['qCam']['fps'],
-                            (frameStack.shape[1], frameStack.shape[0]),
-                            True
-                        )
-                    writer.write(frameStack)
-                # ********************************
+            # ********** Save video **********
+            if self.config['save_video']:
+                if writer is None:
+                    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                    writer = cv2.VideoWriter(
+                        outpath,
+                        fourcc,
+                        self.vid_stats['qCam']['fps'],
+                        (frameStack.shape[1], frameStack.shape[0]),
+                        True
+                    )
+                writer.write(frameStack)
+            # ********************************
 
                 # Press 'q' to stop
                 key = cv2.waitKey(self.config['wait_delay']) & 0xFF
                 if key == ord('q'):
                     break
-            # **********************************************
 
             if self.minNumFrames != None:
                 if frameCounter >= self.minNumFrames:
@@ -253,6 +299,10 @@ class MultiVideoProcessor:
         cv2.destroyAllWindows()
         # ***************************************
 
+        total_proc_end = time.time()
+        total_proc_time = (total_proc_end - total_proc_start) / 60
+        print(f'Total Processing Time: [{total_proc_time:.3f} minute(s).]')
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='MultiVideoProcessor.py')
     parser.add_argument('-c', '--config', type=str, default='config.ini', help='Config file for all settings')
@@ -263,10 +313,9 @@ if __name__ == '__main__':
     config = ProcessConfig(cp)
 
     if config['verbose']:
-        print('Configuration:')
+        print('\nConfiguration:')
         [print(key, ':', value) for key, value in config.items()]
+        print('\n')
         
     mvp = MultiVideoProcessor(config)
-    print(mvp.vid_stats)
-    print('\n')
     mvp.run()

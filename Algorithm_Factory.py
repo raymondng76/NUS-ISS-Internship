@@ -45,18 +45,20 @@ def ReID_Factory(config):
 
     if algo == 'PersonReID':
         reid = PersonReid(
-            network_config = config[algo]['network_config'],
-            weights        = config[algo]['weights'],
-            device         = config['device'],
-            verbose        = config['verbose']
+            network_config  = config[algo]['network_config'],
+            weights         = config[algo]['weights'],
+            threshold = float(config[algo]['match_threshold']),
+            device          = config['device'],
+            verbose         = config['verbose']
         )
 
     elif algo == 'DeepPersonReID':
         reid = DeepPersonReID(
-            model        = config[algo]['model'],
-            weights_path = config[algo]['weights'],
-            device       = config['device'],
-            verbose      = config['verbose']
+            model           = config[algo]['model'],
+            weights_path    = config[algo]['weights'],
+            threshold = float(config[algo]['match_threshold']),
+            device          = config['device'],
+            verbose         = config['verbose']
         )
 
     return reid
