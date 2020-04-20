@@ -31,7 +31,6 @@ def Detector_Tracker_Factory(config):
 
     return detector
 
-
 def ReID_Factory(config):
     '''
     This factory method instantiate and returns the requested ReID algorithm class object

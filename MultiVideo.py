@@ -256,19 +256,19 @@ class MultiVideo:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='MultiVideo.py')
-    parser.add_argument('-c', '--config', type=str, default='config.ini', help='Config file for all settings')
+    # parser.add_argument('-c', '--config', type=str, default='config.ini', help='Config file for all settings')
 
-    # parser.add_argument('-v', '--videos-path', type=str, default='vid_data\WT', help='Path to videos')
-    # parser.add_argument('-w', '--wait-delay', type=int, default=0, help='Delay in ms per frame')
-    # parser.add_argument('-s', '--save-vid', action='store_true', help='Save output videos')
-    # parser.add_argument('-d', '--detect', action='store_true', help='Draw detection on frame')
-    # parser.add_argument('-t', '--track', action='store_true', help='Perform tracking')
-    # parser.add_argument('-sc','--score', type=float, default=0.95, help='ReID matching score threshold')
-    # parser.add_argument('--reid', type=str, default='PersonReID', help='ReID algorithm to use')
-    # parser.add_argument('-ty', '--tiny-yolo', action='store_true', help='Use tiny yolo')
-    # parser.add_argument('-vb', '--verbose', action='store_true', help='Verbosity for detailed error message')
-    # parser.add_argument('-dc', '--disable-cuda', action='store_true', help='Use CPU instead')
-    # parser.add_argument('-o', '--output-path', type=str, default='output', help='Path to save output video')
+    parser.add_argument('-v', '--videos-path', type=str, default='vid_data\WT', help='Path to videos')
+    parser.add_argument('-w', '--wait-delay', type=int, default=0, help='Delay in ms per frame')
+    parser.add_argument('-s', '--save-vid', action='store_true', help='Save output videos')
+    parser.add_argument('-d', '--detect', action='store_true', help='Draw detection on frame')
+    parser.add_argument('-t', '--track', action='store_true', help='Perform tracking')
+    parser.add_argument('-sc','--score', type=float, default=0.95, help='ReID matching score threshold')
+    parser.add_argument('--reid', type=str, default='PersonReID', help='ReID algorithm to use')
+    parser.add_argument('-ty', '--tiny-yolo', action='store_true', help='Use tiny yolo')
+    parser.add_argument('-vb', '--verbose', action='store_true', help='Verbosity for detailed error message')
+    parser.add_argument('-dc', '--disable-cuda', action='store_true', help='Use CPU instead')
+    parser.add_argument('-o', '--output-path', type=str, default='output', help='Path to save output video')
     args = parser.parse_args()
     args.track = True
     args.detect = False

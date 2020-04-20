@@ -81,6 +81,7 @@ class DeepPersonReID:
             index = index[::-1]
             best_gindex = None
             best_gscore = 0.0
+            # Use index[0] here to get the highest scoring index after argsort
             if score[index[0]] > self.threshold:
                 qScore_idx[qidx] = index[0]
                 best_gindex = index[0]

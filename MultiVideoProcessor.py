@@ -21,6 +21,7 @@ from utils import CreateDirIfMissing
 from utils import PadFrame
 from utils import DrawBoundingBoxAndIdx
 from utils import SliceDetection
+from utils import DrawVideoNames
 
 class MultiVideoProcessor:
     '''
@@ -29,7 +30,8 @@ class MultiVideoProcessor:
     def __init__(self, config):
         self.config     = config
         self.detector   = Detector_Tracker_Factory(self.config)
-        self.reid       = ReID_Factory(self.config) if self.detector != None else ReID_Factory('NoReID')
+        self.config['reid_algorithm'] = self.config['reid_algorithm'] if self.detector != None else 'NoReID'
+        self.reid       = ReID_Factory(self.config) 
         self.vid_stats  = self._processVidStats()
         self.smallestVidKey, self.minNumFrames = self._findMinNumFrame()
 
@@ -43,6 +45,7 @@ class MultiVideoProcessor:
     def _reid_process_factory(self, reid):
         '''
         Factory method to allow customized reid process for different ReID algorithm
+        Add customized processor method as required
         '''
         factory = {
             'PersonReID': self._processPersonReid,
@@ -66,9 +69,6 @@ class MultiVideoProcessor:
         # Extract features of qframe
         with torch.no_grad():
             qfeatures = self.reid.extract_features(list(qdet_slice.values()))
-            # qfeats = {}
-            # for idx in range(len(qboxes_idx)):
-            #     qfeats[qboxes_idx[idx]] = qfeatures[idx]
         # *************************************
 
         # ********** GCam processing **********
@@ -86,13 +86,14 @@ class MultiVideoProcessor:
             # Extract features of qframe
             with torch.no_grad():
                 gfeatures = self.reid.extract_features(list(gdet_slice.values()))
-                # gfeats = {}
-                # for idx in range(len(gboxes_idx)):
-                #     gfeats[gboxes_idx[idx]] = gfeatures[idx]
             
             # Run Reid to find matching index
             qScore_idx = self.reid.reid(qfeatures, gfeatures)
-            reid_idx[key] = qScore_idx
+            # Change to 1 based index
+            outscore = {}
+            for iKey in qScore_idx.keys():
+                outscore[iKey + 1] = qScore_idx[iKey]
+            reid_idx[key] = outscore
         # *************************************
         return reid_idx        
 
@@ -147,7 +148,7 @@ class MultiVideoProcessor:
 
     def _arrangeStack(self, frames):
         '''
-        Stack frames 3 across for each rows
+        Stack frames, 3 frame across for each rows
         '''
         hor_stacks = []
         ver_stacks = []
@@ -252,6 +253,9 @@ class MultiVideoProcessor:
                 frames = DrawBoundingBoxAndIdx(frames, boxes, boxes_idx, reid_idx)
             # ***************************************************
 
+            # Label frames
+            frames = DrawVideoNames(self.config, frames)
+            
             # ********** Process and stack frames **********
             frameStack = self._arrangeStack(list(frames.values()))
             # **********************************************
@@ -290,6 +294,7 @@ class MultiVideoProcessor:
             if key == ord('q'):
                 break
 
+            # Break loop once all frames processed, only for videos
             if self.minNumFrames != None:
                 if frameCounter >= self.minNumFrames:
                     loop = False
@@ -313,6 +318,7 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--config', type=str, default='config.ini', help='Config file for all settings')
     args = parser.parse_args()
 
+    # Process config.ini
     cp = configparser.ConfigParser()
     cp.read(args.config)
     config = ProcessConfig(cp)
@@ -321,6 +327,7 @@ if __name__ == '__main__':
         print('\n********** Configuration: **********')
         [print(key, ':', value) for key, value in config.items()]
         print('************************************\n')
-        
+    
+    # Instantiate MVP and run
     mvp = MultiVideoProcessor(config)
     mvp.run()

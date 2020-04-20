@@ -8,12 +8,16 @@ import cv2
 import torch
 
 # Constants for drawing bounding boxes and ID
-FONT_SCALE         = 0.7
-FONT_THICKNESS     = 1
-BOX_LINE_THICKNESS = 2
-YELLOW             = (0, 255, 255)
-RED                = (0, 0, 255)
-BLUE               = (255, 0, 0)
+FONT_SCALE           = 0.7
+FONT_THICKNESS       = 1
+BOX_LINE_THICKNESS   = 2
+VNAME_FONT_THICKNESS = 2
+# COLOR Constants
+YELLOW               = (0, 255, 255)
+RED                  = (0, 0, 255)
+BLUE                 = (255, 0, 0)
+BLACK                = (0, 0, 0)
+ORANGE               = (0, 165, 255)
 
 def ConfigSectionMap(config, section):
     dict1 = {}
@@ -94,6 +98,44 @@ def PadFrame(frame):
     val = [0, 0, 0]
     return cv2.copyMakeBorder(frame, top, bottom, left, right, borderType, None, val)
 
+def DrawVideoNames(config, frames):
+    # Draw qCam video name
+    qFrame = frames[0]
+    qVidName = config['qCam'] if not config['use_camera'] else 'Camera ' + config['qCam']
+    # Draw overlay box
+    (txt_width, txt_height) = cv2.getTextSize(qVidName, cv2.FONT_HERSHEY_SIMPLEX, fontScale=FONT_SCALE, thickness=FONT_THICKNESS)[0]
+    txt_offset_x = 5
+    txt_offset_y = 25 - 5
+    box_coords = (
+        (txt_offset_x, txt_offset_y), 
+        (txt_offset_x + txt_width + 2, txt_offset_y - txt_height))
+    overlay = qFrame.copy()
+    cv2.rectangle(overlay, box_coords[0], box_coords[1], color=BLACK, thickness=cv2.FILLED)
+    # Draw text
+    qFrame = cv2.addWeighted(overlay, 0.6, qFrame, 0.4, 0)
+    cv2.putText(qFrame, qVidName, (5, 20), cv2.FONT_HERSHEY_SIMPLEX, color=ORANGE, fontScale=FONT_SCALE, thickness=VNAME_FONT_THICKNESS)
+    frames[0] = qFrame
+
+    # Draw gCam video name
+    for idx in range(len(frames) - 1):
+        gidx = idx + 1
+        gFrame = frames[gidx]
+        gVidName = config['gCam'][idx] if not config['use_camera'] else 'Camera ' + config['gCam'][idx]
+        # Draw overlay box
+        (txt_width, txt_height) = cv2.getTextSize(gVidName, cv2.FONT_HERSHEY_SIMPLEX, fontScale=FONT_SCALE, thickness=VNAME_FONT_THICKNESS)[0]
+        txt_offset_x = 5
+        txt_offset_y = 25 - 5
+        box_coords = (
+            (txt_offset_x, txt_offset_y), 
+            (txt_offset_x + txt_width + 2, txt_offset_y - txt_height))
+        overlay = gFrame.copy()
+        cv2.rectangle(overlay, box_coords[0], box_coords[1], color=BLACK, thickness=cv2.FILLED)
+        # Draw text
+        gFrame = cv2.addWeighted(overlay, 0.6, gFrame, 0.4, 0)
+        cv2.putText(gFrame, gVidName, (5, 20), cv2.FONT_HERSHEY_SIMPLEX, color=ORANGE, fontScale=FONT_SCALE, thickness=VNAME_FONT_THICKNESS)
+        frames[gidx] = gFrame
+    return frames
+
 def DrawBoundingBoxAndIdx(frames, boxes, boxes_idx, reid_idx):
     '''
     frames = Dictionary containing single frame for each cam / vid (frames[0] for qCam, frames[1:] for all gCam)
@@ -101,10 +143,9 @@ def DrawBoundingBoxAndIdx(frames, boxes, boxes_idx, reid_idx):
     boxes_idx = Dictionary containing all ids of bounding boxes for one frame (boxes_idx[0] for qCam, boxes_idx[1:] for all gCam)
     reid_idx = Dictionary containing all ReID matched ids for all bounding boxes (reid[0] = None, reid[1:] for all gCam)
     '''
-
     # Draw boxes for QCam
     frames[0] = DrawBBoxforQCam(frames[0], boxes[0], boxes_idx[0])
-    
+
     # Draw boxes for all GCam
     for idx in range(len(frames) - 1):
         gidx = idx + 1
@@ -113,6 +154,9 @@ def DrawBoundingBoxAndIdx(frames, boxes, boxes_idx, reid_idx):
     return frames
 
 def DrawBBoxforQCam(frame, boxes, boxes_idx):
+    '''
+    Method to draw bbox and label for query cam
+    '''
     # Loop thru all boxes for this frame
     for idx in range(len(boxes)):
         x, y = boxes[idx][0], boxes[idx][1]
@@ -130,10 +174,13 @@ def DrawBBoxforQCam(frame, boxes, boxes_idx):
         overlay = frame.copy()
         cv2.rectangle(overlay, box_coords[0], box_coords[1], color=RED, thickness=cv2.FILLED)
         frame = cv2.addWeighted(overlay, 0.6, frame, 0.4, 0)
-        cv2.putText(frame, id_txt, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, color=(0, 0, 0), fontScale=FONT_SCALE, thickness=FONT_THICKNESS)
+        cv2.putText(frame, id_txt, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, color=BLACK, fontScale=FONT_SCALE, thickness=FONT_THICKNESS)
     return frame
 
 def DrawBBoxforGCams(frame, boxes, boxes_idx, reid_idx):
+    '''
+    Method to draw bbox and label for gallery cam
+    '''
     if reid_idx != None:
         unique_idx = set(reid_idx.values())
     else:
