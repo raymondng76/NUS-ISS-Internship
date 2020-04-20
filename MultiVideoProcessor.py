@@ -16,12 +16,12 @@ import torch
 from Algorithm_Factory import Detector_Tracker_Factory
 from Algorithm_Factory import ReID_Factory
 
-from utils import ProcessConfig
-from utils import CreateDirIfMissing
-from utils import PadFrame
-from utils import DrawBoundingBoxAndIdx
-from utils import SliceDetection
-from utils import DrawVideoNames
+from MVP_utils import ProcessConfig
+from MVP_utils import CreateDirIfMissing
+from MVP_utils import PadFrame
+from MVP_utils import DrawBoundingBoxAndIdx
+from MVP_utils import SliceDetection
+from MVP_utils import DrawVideoNames
 
 class MultiVideoProcessor:
     '''
