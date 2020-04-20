@@ -29,13 +29,16 @@ class MultiVideoProcessor:
     def __init__(self, config):
         self.config     = config
         self.detector   = Detector_Tracker_Factory(self.config)
-        self.reid       = ReID_Factory(self.config)
+        self.reid       = ReID_Factory(self.config) if self.detector != None else ReID_Factory('NoReID')
         self.vid_stats  = self._processVidStats()
         self.smallestVidKey, self.minNumFrames = self._findMinNumFrame()
 
         if self.config['verbose'] and not self.config['use_camera']:
+            print(f'Detector: [{self.detector}]')
+            print(f'ReID: [{self.reid}]')
             print(f'Video with smallest frame: [{self.smallestVidKey}]')
             print(f'Minimium frame count: [{self.minNumFrames}]')
+            print('\n')
 
     def _reid_process_factory(self, reid):
         '''
@@ -67,6 +70,7 @@ class MultiVideoProcessor:
             # for idx in range(len(qboxes_idx)):
             #     qfeats[qboxes_idx[idx]] = qfeatures[idx]
         # *************************************
+
         # ********** GCam processing **********
         reid_idx = {}
         for key in frames.keys():
@@ -195,10 +199,7 @@ class MultiVideoProcessor:
                 print(f'FRAME[{frameCounter}] : Start Processing')
 
             # Variable to store all frames, bounding boxes and idx
-            frames    = {}
-            boxes     = {}
-            boxes_idx = {}
-            reid_idx = {}
+            frames, boxes, boxes_idx, reid_idx = {}, {}, {}, {} 
 
             # ********** DETECTION / TRACKER **********
             # Grab qCam frame
@@ -207,11 +208,13 @@ class MultiVideoProcessor:
                 print('Frame grab from qCam failed!')
                 loop = False
                 break
+
             # Run thru detector or tracker
             if self.detector != None:
                 outFrame, outBoxes, outBoxesIdx = self.detector.detect(qFrame)
             else:
                 outFrame, outBoxes, outBoxesIdx = qFrame, None, None
+
             # Assign to index 0 for qCam
             frames[0]    = outFrame
             boxes[0]     = outBoxes
@@ -226,11 +229,13 @@ class MultiVideoProcessor:
                     print(f'Frame grab from {key} failed!')
                     loop = False
                     break
+
                 # Run thru detector or tracker
                 if self.detector != None:
                     outFrame, outBoxes, outBoxesIdx = self.detector.detect(gFrame)
                 else:
                     outFrame, outBoxes, outBoxesIdx = gFrame, None, None
+
                 # Assign for gCam, index starts from 1 onwards
                 frames[camidx]    = outFrame
                 boxes[camidx]     = outBoxes
@@ -261,7 +266,7 @@ class MultiVideoProcessor:
                 detname = self.config['det_algorithm']
                 reidname = self.config['reid_algorithm']
                 title = f'MultiVideo -> Detector_Tracker: [{detname}] -> ReID: [{reidname}]'
-                if self.config['reid_algorithm'] != None:
+                if self.reid != None:
                     title += f' -> ReID match threshold: [{self.reid.threshold}]'
                 cv2.imshow(title, frameStack)
             # **********************************************
@@ -280,10 +285,10 @@ class MultiVideoProcessor:
                 writer.write(frameStack)
             # ********************************
 
-                # Press 'q' to stop
-                key = cv2.waitKey(self.config['wait_delay']) & 0xFF
-                if key == ord('q'):
-                    break
+            # Press 'q' to stop
+            key = cv2.waitKey(self.config['wait_delay']) & 0xFF
+            if key == ord('q'):
+                break
 
             if self.minNumFrames != None:
                 if frameCounter >= self.minNumFrames:
@@ -313,9 +318,9 @@ if __name__ == '__main__':
     config = ProcessConfig(cp)
 
     if config['verbose']:
-        print('\nConfiguration:')
+        print('\n********** Configuration: **********')
         [print(key, ':', value) for key, value in config.items()]
-        print('\n')
+        print('************************************\n')
         
     mvp = MultiVideoProcessor(config)
     mvp.run()

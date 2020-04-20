@@ -134,6 +134,10 @@ def DrawBBoxforQCam(frame, boxes, boxes_idx):
     return frame
 
 def DrawBBoxforGCams(frame, boxes, boxes_idx, reid_idx):
+    if reid_idx != None:
+        unique_idx = set(reid_idx.values())
+    else:
+        unique_idx = {}
     # Loop thru all boxes for this frame
     for idx in range(len(boxes)):
         # Detection / Tracked box
@@ -145,8 +149,27 @@ def DrawBBoxforGCams(frame, boxes, boxes_idx, reid_idx):
         detID_offset_y = y + h # Print detection ID at bottom
         cv2.putText(frame, detID_txt, (int(detID_offset_x), int(detID_offset_y) - 5), cv2.FONT_HERSHEY_SIMPLEX,
             fontScale=FONT_SCALE, color=YELLOW, thickness=FONT_THICKNESS)
-        # TODO: Filter for REID boxes
-        cv2.rectangle(frame, (x, y), (x + w, y + h), color=YELLOW, thickness=BOX_LINE_THICKNESS)
+        if idx not in unique_idx:
+            cv2.rectangle(frame, (x, y), (x + w, y + h), color=YELLOW, thickness=BOX_LINE_THICKNESS)
+    
+    # Loop thru all unique matched ReID
+    for uidx in unique_idx:
+        indices = [k for k in reid_idx.keys() if reid_idx[k] == uidx]
+        # Matched boxes
+        x, y = boxes[uidx][0], boxes[uidx][1]
+        w, h = boxes[uidx][2], boxes[uidx][3]
+        cv2.rectangle(frame, (x, y), (x + w, y + h), color=BLUE, thickness=BOX_LINE_THICKNESS)
+        # Matched ID
+        text = str(indices).replace('[','').replace(']','')
+        (text_width, text_height) = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, fontScale=FONT_SCALE, thickness=FONT_THICKNESS)[0]
+        text_offset_x = x
+        text_offset_y = y - 5
+        box_coords = ((text_offset_x, text_offset_y), (text_offset_x + text_width + 2, text_offset_y - text_height))
+        overlay = frame.copy()
+        cv2.rectangle(overlay, box_coords[0], box_coords[1], color=(255, 0, 255), thickness=cv2.FILLED)
+        frame = cv2.addWeighted(overlay, 0.6, frame, 0.4, 0)
+        cv2.putText(frame, text, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX,
+            fontScale=FONT_SCALE, color=(0, 0, 0), thickness=FONT_THICKNESS)
     return frame
 
 def SliceDetection(frame, boxes, boxes_idx):
