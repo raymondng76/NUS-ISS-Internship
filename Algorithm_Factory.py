@@ -3,9 +3,9 @@
 # NUS ISS Internship project 2020
 # ------------------------------
 
-from YOLOv3_Detector import YOLOv3_Detector
-from PersonReID import PersonReid
-from DeepPersonReID import DeepPersonReID
+from Detector_Tracker.YOLOv3.YOLOv3_Detector import YOLOv3_Detector
+from ReID.PersonReID.PersonReID import PersonReid
+from ReID.DeepPersonReID.DeepPersonReID import DeepPersonReID
 
 def Detector_Tracker_Factory(config):
     '''
