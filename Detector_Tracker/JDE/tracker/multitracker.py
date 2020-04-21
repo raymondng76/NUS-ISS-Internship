@@ -8,11 +8,11 @@ import time
 import torch
 import torch.nn.functional as F
 
-from utils.utils import *
-from utils.log import logger
-from utils.kalman_filter import KalmanFilter
-from models import *
-from tracker import matching
+from Detector_Tracker.JDE.utils.utils import *
+from Detector_Tracker.JDE.utils.log import logger
+from Detector_Tracker.JDE.utils.kalman_filter import KalmanFilter
+from Detector_Tracker.JDE.model.models import *
+from Detector_Tracker.JDE.tracker import matching
 from .basetrack import BaseTrack, TrackState
 
 
@@ -168,26 +168,26 @@ class STrack(BaseTrack):
 
 
 class JDETracker(object):
-    def __init__(self, opt, frame_rate=30):
-        self.opt = opt
-        # if opt.gpus[0] >= 0:
-        #     opt.device = torch.device('cuda')
-        # else:
-        opt.device = torch.device('cpu')
-        self.model = Darknet(opt.cfg)
+    def __init__(self, network_config, weights, iou_threshold, conf_threshold, nms_threshold, img_size, track_buffer, device='cpu', frame_rate=24):
+        # self.config = config
+        self.model = Darknet(network_config)
         # load_darknet_weights(self.model, opt.weights)
-        self.model.load_state_dict(torch.load(opt.weights, map_location='cpu')['model'], strict=False)
+        self.model.load_state_dict(torch.load(weights, map_location='cpu')['model'], strict=False)
         # self.model.cuda().eval()
-        self.model = self.model.to(opt.device)
+        self.model = self.model.to(device)
         self.model.eval()
-
+        
         self.tracked_stracks = []  # type: list[STrack]
         self.lost_stracks = []  # type: list[STrack]
         self.removed_stracks = []  # type: list[STrack]
 
         self.frame_id = 0
-        self.det_thresh = opt.conf_thres
-        self.buffer_size = int(frame_rate / 30.0 * opt.track_buffer)
+        self.conf_thresh = conf_threshold
+        self.iou_thres = iou_threshold
+        self.nms_thres = nms_threshold
+        self.img_size = img_size
+
+        self.buffer_size = int(frame_rate / 30.0 * track_buffer)
         self.max_time_lost = self.buffer_size
 
         self.kalman_filter = KalmanFilter()
@@ -203,11 +203,11 @@ class JDETracker(object):
         ''' Step 1: Network forward, get detections & embeddings'''
         with torch.no_grad():
             pred = self.model(im_blob)
-        pred = pred[pred[:, :, 4] > self.opt.conf_thres]
+        pred = pred[pred[:, :, 4] > self.conf_thresh]
         if len(pred) > 0:
-            dets = non_max_suppression(pred.unsqueeze(0), self.opt.conf_thres, 
-                                       self.opt.nms_thres)[0]
-            scale_coords(self.opt.img_size, dets[:, :4], img0.shape).round()
+            dets = non_max_suppression(pred.unsqueeze(0), self.conf_thresh, 
+                                       self.nms_thres)[0]
+            scale_coords(self.img_size, dets[:, :4], img0.shape).round()
             dets, embs = dets[:, :5].cpu().numpy(), dets[:, 6:].cpu().numpy()
             '''Detections'''
             detections = [STrack(STrack.tlbr_to_tlwh(tlbrs[:4]), tlbrs[4], f, 30) for
@@ -279,7 +279,7 @@ class JDETracker(object):
         """ Step 4: Init new stracks"""
         for inew in u_detection:
             track = detections[inew]
-            if track.score < self.det_thresh:
+            if track.score < self.conf_thresh:
                 continue
             track.activate(self.kalman_filter, self.frame_id)
             activated_starcks.append(track)

@@ -212,10 +212,15 @@ class MultiVideoProcessor:
 
             # Run thru detector or tracker
             if self.detector != None:
-                outFrame, outBoxes, outBoxesIdx = self.detector.detect(qFrame)
+                if self.config[self.config['det_algorithm']]['type'] == 'detector':
+                    outFrame, outBoxes, outBoxesIdx = self.detector.detect(qFrame)
+                elif self.config[self.config['det_algorithm']]['type'] == 'tracker':
+                    outFrame, outBoxes, outBoxesIdx = self.detector.track(qFrame, 0)
+                else: # Just for safety
+                    outFrame, outBoxes, outBoxesIdx = qFrame, None, None
             else:
                 outFrame, outBoxes, outBoxesIdx = qFrame, None, None
-
+                
             # Assign to index 0 for qCam
             frames[0]    = outFrame
             boxes[0]     = outBoxes
@@ -233,7 +238,12 @@ class MultiVideoProcessor:
 
                 # Run thru detector or tracker
                 if self.detector != None:
-                    outFrame, outBoxes, outBoxesIdx = self.detector.detect(gFrame)
+                    if self.config[self.config['det_algorithm']]['type'] == 'detector':
+                        outFrame, outBoxes, outBoxesIdx = self.detector.detect(gFrame)
+                    elif self.config[self.config['det_algorithm']]['type'] == 'tracker':
+                        outFrame, outBoxes, outBoxesIdx = self.detector.track(gFrame, camidx)
+                    else: # Just for safety
+                        outFrame, outBoxes, outBoxesIdx = gFrame, None, None
                 else:
                     outFrame, outBoxes, outBoxesIdx = gFrame, None, None
 
