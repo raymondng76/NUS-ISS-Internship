@@ -159,8 +159,8 @@ def DrawBBoxforQCam(frame, boxes, boxes_idx):
     '''
     # Loop thru all boxes for this frame
     for idx in range(len(boxes)):
-        x, y = boxes[idx][0], boxes[idx][1]
-        w, h = boxes[idx][2], boxes[idx][3]
+        x, y = int(boxes[idx][0]), int(boxes[idx][1])
+        w, h = int(boxes[idx][2]), int(boxes[idx][3])
         # Draw bounding box
         cv2.rectangle(frame, (x, y), (x + w, y + h), color=RED, thickness=BOX_LINE_THICKNESS)
         # Draw bounding box ID text
@@ -188,8 +188,8 @@ def DrawBBoxforGCams(frame, boxes, boxes_idx, reid_idx):
     # Loop thru all boxes for this frame
     for idx in range(len(boxes)):
         # Detection / Tracked box
-        x, y = boxes[idx][0], boxes[idx][1]
-        w, h = boxes[idx][2], boxes[idx][3]
+        x, y = int(boxes[idx][0]), int(boxes[idx][1])
+        w, h = int(boxes[idx][2]), int(boxes[idx][3])
         # ID from detection / track
         detID_txt = str(boxes_idx[idx])
         detID_offset_x = x
@@ -203,8 +203,8 @@ def DrawBBoxforGCams(frame, boxes, boxes_idx, reid_idx):
     for uidx in unique_idx:
         indices = [k for k in reid_idx.keys() if reid_idx[k] == uidx]
         # Matched boxes
-        x, y = boxes[uidx][0], boxes[uidx][1]
-        w, h = boxes[uidx][2], boxes[uidx][3]
+        x, y = int(boxes[uidx][0]), int(boxes[uidx][1])
+        w, h = int(boxes[uidx][2]), int(boxes[uidx][3])
         cv2.rectangle(frame, (x, y), (x + w, y + h), color=BLUE, thickness=BOX_LINE_THICKNESS)
         # Matched ID
         text = str(indices).replace('[','').replace(']','')
@@ -222,7 +222,7 @@ def DrawBBoxforGCams(frame, boxes, boxes_idx, reid_idx):
 def SliceDetection(frame, boxes, boxes_idx):
     det_slice = {}
     for bidx in range(len(boxes)):
-        x, y = boxes[bidx][0], boxes[bidx][1]
-        w, h = boxes[bidx][2], boxes[bidx][3]
+        x, y = int(boxes[bidx][0]), int(boxes[bidx][1])
+        w, h = int(boxes[bidx][2]), int(boxes[bidx][3])
         det_slice[boxes_idx[bidx]] = frame[y:y + h, x:x + w]
     return det_slice

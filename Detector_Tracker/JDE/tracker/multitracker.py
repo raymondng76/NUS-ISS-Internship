@@ -168,13 +168,10 @@ class STrack(BaseTrack):
 
 
 class JDETracker(object):
-    def __init__(self, network_config, weights, iou_threshold, conf_threshold, nms_threshold, img_size, track_buffer, device='cpu', frame_rate=24):
-        # self.config = config
+    def __init__(self, network_config, weights, iou_threshold, conf_threshold, nms_threshold, img_size, track_buffer, device='cpu', frame_rate=30):
         self.model = Darknet(network_config)
-        # load_darknet_weights(self.model, opt.weights)
         self.model.load_state_dict(torch.load(weights, map_location='cpu')['model'], strict=False)
-        # self.model.cuda().eval()
-        self.model = self.model.to(device)
+        self.model = self.model.to(torch.device(device))
         self.model.eval()
         
         self.tracked_stracks = []  # type: list[STrack]
@@ -280,6 +277,7 @@ class JDETracker(object):
         for inew in u_detection:
             track = detections[inew]
             if track.score < self.conf_thresh:
+                print('new track fail det threshold')
                 continue
             track.activate(self.kalman_filter, self.frame_id)
             activated_starcks.append(track)

@@ -41,7 +41,6 @@ def Detector_Tracker_Factory(config):
             frame_rate     = int(config[algo]['frame_rate']),
             device         = config['device'],
             verbose        = config['verbose'],
-            img_size       = (int(config[algo]['model_img_height']), int(config[algo]['model_img_width'])),
             min_box_area   = int(config[algo]['min_box_area']),
             total_cams     = len(config['gCam']) + 1 # 1 for qCam)
         )

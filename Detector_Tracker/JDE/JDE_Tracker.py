@@ -1,9 +1,12 @@
 # ------------------------------
 # Raymond Ng
 # NUS ISS Internship project 2020
+#
+# Code is adapted from : https://github.com/Zhongdao/Towards-Realtime-MOT
 # ------------------------------
 
 from Detector_Tracker.JDE.tracker.multitracker import JDETracker
+from Detector_Tracker.JDE.utils.parse_config import parse_model_cfg
 import cv2
 import torch
 import numpy as np
@@ -12,7 +15,6 @@ class JDE_Tracker:
     '''
     This is the wrapper class for the JDETracker algorithm model instance
     Due to multi video processing, one instance of the JDETracker is required for each video being processed
-    All instances of JDETracker is proces
     '''
     def __init__(self, 
         network_config, 
@@ -24,10 +26,19 @@ class JDE_Tracker:
         device, 
         frame_rate, 
         verbose, 
-        img_size, 
         min_box_area,
         total_cams):
 
+        self.network_config = network_config
+        cfg_dict            = parse_model_cfg(self.network_config)
+        self.img_size       = [int(cfg_dict[0]['width']), int(cfg_dict[0]['height'])]
+        self.iou_threshold  = iou_threshold
+        self.conf_threshold = conf_threshold
+        self.verbose        = verbose
+        self.frame_rate     = frame_rate
+        self.min_box_area   = min_box_area
+
+        # Each camera/video need to have its own tracker object as the tracklets needs to persist for tracking purposes
         self.JDETracker = []
         for idx in range(total_cams):
             self.JDETracker.append(JDETracker(
@@ -36,32 +47,35 @@ class JDE_Tracker:
                 iou_threshold, 
                 conf_threshold, 
                 nms_threshold, 
-                img_size, 
+                self.img_size, 
                 track_buffer, 
                 device, 
-                frame_rate))
+                frame_rate))  
 
-        self.iou_threshold = iou_threshold
-        self.conf_threshold = conf_threshold
-        self.verbose = verbose
-        self.frame_rate = frame_rate
-        self.img_size = img_size
-        self.min_box_area = min_box_area
+        if self.verbose:
+            print(f'********** JDE_Tracker **********')
+            print(f'IOU Threshold : [{self.iou_threshold}]')
+            print(f'CONF Threshold : [{self.conf_threshold}]')
+            print(f'Frame Rate : [{self.frame_rate}]')
+            print(f'Img Size : [{self.img_size}]')
+            print(f'Min Box Area : [{self.min_box_area}]')
+            print(f'*********************************')
     
+    def get_size(self, vw, vh, dw, dh):
+        wa, ha = float(dw) / vw, float(dh) / vh
+        a = min(wa, ha)
+        return int(vw *a), int(vh*a)
+
     def processImage(self, frame):
+        w, h = self.get_size(frame.shape[1], frame.shape[0], self.img_size[0], self.img_size[1])
         # Resize
-        print(f'frame size: {frame.shape}')
-
-        img0 = cv2.resize(frame, (self.img_size[1], self.img_size[0]))
-        print(f'img0 size: {img0.shape}')
+        img0 = cv2.resize(frame, (w, h))
         # Padded resize
-        img, _, _, _ = self.letterbox(img0, height=self.img_size[0], width=self.img_size[1])
-
+        img, _, _, _ = self.letterbox(img0, height=self.img_size[1], width=self.img_size[0])
         # Normalize RGB
         img = img[:,:,::-1].transpose(2, 0, 1)
         img = np.ascontiguousarray(img, dtype=np.float32)
         img /= 255.0
-
         return img, img0
 
     def track(self, frame, cam):
