@@ -19,7 +19,7 @@ from .basetrack import BaseTrack, TrackState
 class STrack(BaseTrack):
     shared_kalman = KalmanFilter()
 
-    def __init__(self, tlwh, score, temp_feat, buffer_size=30):
+    def __init__(self, tlwh, score, temp_feat, count, buffer_size=30):
 
         # wait activate
         self._tlwh = np.asarray(tlwh, dtype=np.float)
@@ -34,6 +34,7 @@ class STrack(BaseTrack):
         self.update_features(temp_feat)
         self.features = deque([], maxlen=buffer_size)
         self.alpha = 0.9
+        BaseTrack._count = count
     
     def update_features(self, feat):
         feat /= np.linalg.norm(feat)
@@ -189,6 +190,8 @@ class JDETracker(object):
 
         self.kalman_filter = KalmanFilter()
 
+        self._counter = 0
+
     def update(self, im_blob, img0):
         self.frame_id += 1
         activated_starcks = []
@@ -207,7 +210,7 @@ class JDETracker(object):
             scale_coords(self.img_size, dets[:, :4], img0.shape).round()
             dets, embs = dets[:, :5].cpu().numpy(), dets[:, 6:].cpu().numpy()
             '''Detections'''
-            detections = [STrack(STrack.tlbr_to_tlwh(tlbrs[:4]), tlbrs[4], f, 30) for
+            detections = [STrack(STrack.tlbr_to_tlwh(tlbrs[:4]), tlbrs[4], f, self._counter, 30) for
                           (tlbrs, f) in zip(dets, embs)]
         else:
             detections = []
