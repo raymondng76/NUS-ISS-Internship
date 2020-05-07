@@ -2,7 +2,7 @@
 
 ## Project Title:
 ---
-Multi Object Multi Camera Tracking using ReID for traffic surveillance
+Multi Object Multi Camera Tracking for Traffic Surveillance
 
 ## Requirements:
 ---
