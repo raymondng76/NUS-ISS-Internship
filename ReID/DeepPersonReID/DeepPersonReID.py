@@ -52,7 +52,10 @@ class DeepPersonReID:
         '''
         features = torch.FloatTensor().to(device=self.device)
         for image in images:
-            img = image_loader(self.transforms, image, True).to(device=self.device)
+            try:
+                img = image_loader(self.transforms, image, True).to(device=self.device)
+            except:
+                continue
             ff = torch.FloatTensor(1, 512).zero_().to(device=self.device)
             for i in range(2):
                 if (i == 1):
