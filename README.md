@@ -30,3 +30,7 @@ python MultiVideoProcessor.py
 ## Add new detector / tracker / ReID algorithm:
 ---
 Please refer to [add_algorithm.md](https://github.com/raymondng76/NUS-ISS-Internship/blob/master/add_algorithm.md) for detailed step by step guide.
+
+## Demo
+___
+[![Demo](https://img.youtube.com/vi/L-gUpe4xn0o/0.jpg)](https://youtu.be/L-gUpe4xn0o "Demo")
